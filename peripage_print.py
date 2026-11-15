@@ -13,6 +13,7 @@ try:
 except ImportError as exc:
     raise SystemExit("Missing dependency Pillow. Install with: python3 -m pip install -r requirements.txt") from exc
 PRINTER_WIDTH = 384
+RASTER_WIDTH_BYTES = PRINTER_WIDTH // 8
 RFCOMM_CHANNEL = 1
 CHUNK_SIZE = 122
 
@@ -93,9 +94,9 @@ def print_image(printer: PeriPage, image: Image.Image, *, brightness: float | No
     width, height = image.size
     raster = image.tobytes()
     printer.begin_print()
-    # Preserve upstream preamble and raster command (48 bytes/row).
+    # ESC/POS raster command takes width in bytes per row, not printer dots.
     printer.sock.sendall(bytes.fromhex("000000000000000000000000"))
-    printer.sock.sendall(bytes.fromhex("1d7630003000") + height.to_bytes(2, "little"))
+    printer.sock.sendall(bytes.fromhex("1d763000") + RASTER_WIDTH_BYTES.to_bytes(2, "little") + height.to_bytes(2, "little"))
     total = (len(raster) + CHUNK_SIZE - 1) // CHUNK_SIZE
     progress(f"Print image: {width} × {height} pixels; {total} data chunks.")
     for offset in range(0, len(raster), CHUNK_SIZE):
